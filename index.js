@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { MercadoPagoConfig, Preference } from "mercadopago";
 
 const client = new MercadoPagoConfig({
-  accessToken: "TEST-6794150768740601-102714-a96a4263294361a1e49415709f3fefa4-130952820",
+  accessToken: "APP_USR-6794150768740601-102714-e046b0986d62551114608a1535d5693e-130952820",
 });
 
 const app = express();
@@ -57,7 +57,7 @@ app.post("/create_preference", async (req, res) => {
     const body = {
       items: validatedItems,
       back_urls: {
-        success: "https://www.tusitio.com/success", // Reemplaza con tu URL de éxito
+        success: "https://www.earplugs.com.ar", // Reemplaza con tu URL de éxito
         failure: "https://www.tusitio.com/failure", // Reemplaza con tu URL de fallo
         pending: "https://www.tusitio.com/pending", // Reemplaza con tu URL de pendiente
       },
