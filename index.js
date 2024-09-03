@@ -1,6 +1,6 @@
 import express, { json } from "express";
 import cors from "cors";
-import mysql from 'mysql';
+import mysql from 'mysql2';
 import util from 'util';
 import dotenv from 'dotenv';
 import { MercadoPagoConfig, Preference } from "mercadopago";
