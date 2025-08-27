@@ -15,16 +15,25 @@ const port = 8000;
 dotenv.config();
 
 var pool = mysql.createPool({
-  connectionLimit: 100,
-  host: process.env.MYSQL_HOST,
-  user: process.env.MYSQL_USER,
-  password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DB_NAME,
-  port: process.env.MYSQL_PORT,
-  connectTimeout: 20000,
+    connectionLimit: 10,
+    host: process.env.MYSQLHOST || process.env.MYSQL_HOST,
+    user: process.env.MYSQLUSER || process.env.MYSQL_USER,
+    password: process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
+    database: process.env.MYSQLDATABASE || process.env.MYSQL_DB_NAME,
+    port: process.env.MYSQLPORT || process.env.MYSQL_PORT || 3306,
 });
 
 pool.query = util.promisify(pool.query);
+
+pool.getConnection((err, connection) => {
+  if (err) {
+    console.error("No se pudo conectar a la base de datos:", err);
+  } else {
+    console.log("Conexión a la base de datos establecida correctamente");
+    connection.release();
+  }
+});
+
 
 app.use(cors());
 app.use(express.json());
