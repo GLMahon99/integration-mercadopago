@@ -14,14 +14,17 @@ const port = 8000;
 
 dotenv.config();
 
-var pool = mysql.createPool({
-    connectionLimit: 10,
-    host: process.env.MYSQLHOST || process.env.MYSQL_HOST,
-    user: process.env.MYSQLUSER || process.env.MYSQL_USER,
-    password: process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD,
-    database: process.env.MYSQLDATABASE || process.env.MYSQL_DB_NAME,
-    port: process.env.MYSQLPORT || process.env.MYSQL_PORT || 3306,
+const pool = mysql.createPool({
+    host: process.env.MYSQL_HOST,
+    user: process.env.MYSQL_USER,
+    password: process.env.MYSQL_PASSWORD,
+    database: process.env.MYSQL_DB_NAME,
+    port: process.env.MYSQL_PORT,
+    ssl: {
+        rejectUnauthorized: false // Permite certificados autofirmados
+    }
 });
+
 
 pool.query = util.promisify(pool.query);
 
