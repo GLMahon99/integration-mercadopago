@@ -62,7 +62,7 @@ app.post("/create_preference", async (req, res) => {
       throw new Error("Items no válidos o faltantes");
     }
 
-    // Asegúrate de que cada item tiene un unit_price
+    // Validar items
     const validatedItems = items.map((item) => {
       if (!item.unit_price) {
         throw new Error("unit_price needed");
@@ -78,24 +78,22 @@ app.post("/create_preference", async (req, res) => {
     const body = {
       items: validatedItems,
       back_urls: {
-        success: "https://www.earplugs.com.ar", // Reemplaza con tu URL de éxito
-        failure: "https://www.tusitio.com/failure", // Reemplaza con tu URL de fallo
-        pending: "https://www.tusitio.com/pending", // Reemplaza con tu URL de pendiente
+        success: "https://www.earplugs.com.ar",
+        failure: "https://www.tusitio.com/failure",
+        pending: "https://www.tusitio.com/pending",
       },
       auto_return: "approved",
     };
 
-    // Insertar datos del cliente o actualizar si ya existe
-    const { name, surname, type_id, number_id, condition_iva, email, phone } = clientData;
-    const queryFindClient = "SELECT cliente_id FROM clientes WHERE numero_identificacion = ?";
-    const queryInsertClient = "INSERT INTO clientes (nombre, apellido, tipo_identificacion, numero_identificacion, condicion_iva, email, telefono) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    // Buscar usuario por número de identificación
+    const { number_id } = clientData;
+    const queryFindUser = "SELECT id FROM usuarios WHERE numero_identificacion = ?";
 
-    // Convertir cart a JSON y agregarlo a customerData
+    // Convertir cart a JSON y preparar datos del pedido
     const cartJson = JSON.stringify(cart);
     const { address, cp, city, date, floor, door, type_of_housing, additional_information, shippPrice, total, methodPay } = customerData;
     const customerDataQuery = "INSERT INTO pedidos (cliente_id, direccion_entrega, cp, localidad, fecha_pedido, piso, puerta, tipo_vivienda, observacion, envio_precio, pedido_total, forma_pago, detalle) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    // Ejecutar las consultas en una transacción
     pool.getConnection((err, connection) => {
       if (err) {
         console.error("Error al obtener la conexión:", err);
@@ -109,23 +107,21 @@ app.post("/create_preference", async (req, res) => {
           return;
         }
 
-        connection.query(queryFindClient, [number_id], (findClientError, findClientResults) => {
-          if (findClientError) {
-            console.error("Error al buscar cliente:", findClientError);
+        connection.query(queryFindUser, [number_id], (findUserError, findUserResults) => {
+          if (findUserError) {
+            console.error("Error al buscar usuario:", findUserError);
             connection.rollback(() => {
-              console.error("Transacción revertida debido a un error en la búsqueda del cliente.");
+              console.error("Transacción revertida debido a un error en la búsqueda del usuario.");
               connection.release();
             });
             return;
           }
 
-          let clienteIdGenerado;
+          if (findUserResults.length > 0) {
+            const usuarioId = findUserResults[0].id;
+            console.log("Usuario encontrado, ID:", usuarioId);
 
-          if (findClientResults.length > 0) {
-            clienteIdGenerado = findClientResults[0].cliente_id;
-            console.log("Cliente encontrado, ID:", clienteIdGenerado);
-
-            connection.query(customerDataQuery, [clienteIdGenerado, address, cp, city, date, floor, door, type_of_housing, additional_information, shippPrice, total, methodPay, cartJson], (pedidoError, pedidoResults) => {
+            connection.query(customerDataQuery, [usuarioId, address, cp, city, date, floor, door, type_of_housing, additional_information, shippPrice, total, methodPay, cartJson], (pedidoError, pedidoResults) => {
               if (pedidoError) {
                 console.error("Error al insertar datos de pedido:", pedidoError);
                 connection.rollback(() => {
@@ -143,49 +139,18 @@ app.post("/create_preference", async (req, res) => {
                     connection.release();
                   });
                 } else {
-                  console.log("Datos insertados correctamente en cliente y pedidos.");
+                  console.log("Datos insertados correctamente en pedidos.");
                   connection.release();
                 }
               });
             });
           } else {
-            connection.query(queryInsertClient, [name, surname, type_id, number_id, condition_iva, email, phone], (clientError, clientResults) => {
-              if (clientError) {
-                console.error("Error al insertar datos de cliente:", clientError);
-                connection.rollback(() => {
-                  console.error("Transacción revertida debido a un error en la inserción del cliente.");
-                  connection.release();
-                });
-                return;
-              }
-
-              clienteIdGenerado = clientResults.insertId;
-              console.log("Cliente insertado, ID:", clienteIdGenerado);
-
-              connection.query(customerDataQuery, [clienteIdGenerado, address, cp, city, date, floor, door, type_of_housing, additional_information, shippPrice, total, methodPay, cartJson], (pedidoError, pedidoResults) => {
-                if (pedidoError) {
-                  console.error("Error al insertar datos de pedido:", pedidoError);
-                  connection.rollback(() => {
-                    console.error("Transacción revertida debido a un error en la inserción del pedido.");
-                    connection.release();
-                  });
-                  return;
-                }
-
-                connection.commit((commitErr) => {
-                  if (commitErr) {
-                    console.error("Error al confirmar la transacción:", commitErr);
-                    connection.rollback(() => {
-                      console.error("Transacción revertida debido a un error en la confirmación.");
-                      connection.release();
-                    });
-                  } else {
-                    console.log("Datos insertados correctamente en cliente y pedidos.");
-                    connection.release();
-                  }
-                });
-              });
+            console.error("Usuario no encontrado con ese número de identificación.");
+            connection.rollback(() => {
+              connection.release();
             });
+            res.status(404).json({ error: "Usuario no encontrado" });
+            return;
           }
         });
       });
