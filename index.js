@@ -14,12 +14,12 @@ const port = 8000;
 
 dotenv.config();
 
-console.log("Variables de entorno:");
-console.log("MYSQLHOST:", process.env.MYSQLHOST);
-console.log("MYSQLPORT:", process.env.MYSQLPORT);
-console.log("MYSQLUSER:", process.env.MYSQLUSER);
-console.log("MYSQLPASSWORD:", process.env.MYSQLPASSWORD);
-console.log("MYSQLDATABASE:", process.env.MYSQLDATABASE);
+// console.log("Variables de entorno:");
+// console.log("MYSQLHOST:", process.env.MYSQLHOST);
+// console.log("MYSQLPORT:", process.env.MYSQLPORT);
+// console.log("MYSQLUSER:", process.env.MYSQLUSER);
+// console.log("MYSQLPASSWORD:", process.env.MYSQLPASSWORD);
+// console.log("MYSQLDATABASE:", process.env.MYSQLDATABASE);
 
 
 const pool = mysql.createPool({
@@ -59,7 +59,12 @@ app.post("/create_preference", async (req, res) => {
     const { items, customerData, clientData, cart } = req.body;
 
     if (!items || !Array.isArray(items)) {
-      throw new Error("Items no válidos o faltantes");
+      return res.status(400).json({ error: "Items no válidos o faltantes" });
+    }
+
+    const totalQuantity = items.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
+    if (totalQuantity < 12) {
+      return res.status(400).json({ error: "El pedido debe tener un mínimo de 12 unidades en total." });
     }
 
     // Validar items
@@ -69,11 +74,21 @@ app.post("/create_preference", async (req, res) => {
       }
       return {
         title: item.title,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
+        quantity: Number(item.quantity),
+        unit_price: Number(item.unit_price),
         currency_id: "ARS",
       };
     });
+
+    const shippingPrice = customerData?.shippPrice || req.body.shippingPrice;
+    if (shippingPrice && Number(shippingPrice) > 0) {
+      validatedItems.push({
+        title: 'Costo de envío',
+        quantity: 1,
+        unit_price: Number(shippingPrice),
+        currency_id: "ARS"
+      });
+    }
 
     const body = {
       items: validatedItems,
